@@ -1,0 +1,26 @@
+{# @var craft \craft\web\twig\variables\CraftVariable #}
+{#
+/**
+ * Craft Commerce Pricing Matrix plugin for Craft CMS
+ *
+ * Pricingmatrix Field Settings
+ *
+ * @author    Josh Smith <josh.smith@platocreative.co.nz>
+ * @copyright Copyright (c) 2019 Josh Smith <josh.smith@platocreative.co.nz>
+ * @link      https://www.platocreative.co.nz/
+ * @package   CraftCommercePricingMatrix
+ * @since     1.0.0
+ */
+#}
+
+{% import "_includes/forms" as forms %}
+
+{% do view.registerAssetBundle("platocreative\\craftcommercepricingmatrix\\assetbundles\\craftcommercepricingmatrix\\CraftCommercePricingMatrixAsset") %}
+
+{{ forms.textField({
+    label: 'Some Attribute',
+    instructions: 'Enter some attribute here.',
+    id: 'someAttribute',
+    name: 'someAttribute',
+    value: field['someAttribute']})
+}}

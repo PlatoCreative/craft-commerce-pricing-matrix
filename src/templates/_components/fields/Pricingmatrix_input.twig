@@ -1,0 +1,24 @@
+{# @var craft \craft\web\twig\variables\CraftVariable #}
+{#
+/**
+ * Craft Commerce Pricing Matrix plugin for Craft CMS 3.x
+ *
+ * Pricingmatrix Field Input
+ *
+ * @author    Josh Smith <josh.smith@platocreative.co.nz>
+ * @copyright Copyright (c) 2019 Josh Smith <josh.smith@platocreative.co.nz>
+ * @link      https://www.platocreative.co.nz/
+ * @package   CraftCommercePricingMatrix
+ * @since     1.0.0
+ */
+#}
+
+{% import "_includes/forms" as forms %}
+
+{{ forms.textField({
+        label: 'Some Field',
+        instructions: 'Enter some text here.',
+        id: name,
+        name: name,
+        value: value})
+}}

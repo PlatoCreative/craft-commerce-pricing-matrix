@@ -1,0 +1,43 @@
+{
+    "name": "platocreative/craft-commerce-pricing-matrix",
+    "description": "Craft Commerce Pricing Matrices. Adds a custom field type that can be used to upload a pricing matrix for products in a CSV format.",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "craft commerce pricing matrix"
+    ],
+    "support": {
+        "docs": "https://github.com/platocreative/craft-commerce-pricing-matrix/blob/master/README.md",
+        "issues": "https://github.com/platocreative/craft-commerce-pricing-matrix/issues"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Josh Smith <josh.smith@platocreative.co.nz>",
+            "homepage": "https://www.platocreative.co.nz/"
+        }
+    ],
+    "require": {
+        "craftcms/cms": "^3.0.0-RC1"
+    },
+    "autoload": {
+        "psr-4": {
+          "platocreative\\craftcommercepricingmatrix\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Craft Commerce Pricing Matrix",
+        "handle": "craft-commerce-pricing-matrix",
+        "hasCpSettings": false,
+        "hasCpSection": false,
+        "changelogUrl": "https://raw.githubusercontent.com/platocreative/craft-commerce-pricing-matrix/master/CHANGELOG.md",
+        "components": {
+            "pricingmatrix": "platocreative\\craftcommercepricingmatrix\\services\\Pricingmatrix"
+        },
+        "class": "platocreative\\craftcommercepricingmatrix\\CraftCommercePricingMatrix"
+    }
+}
