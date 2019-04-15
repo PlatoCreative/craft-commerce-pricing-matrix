@@ -12,15 +12,12 @@
  * @since     1.0.0
  */
 #}
+{% extends "_components/fieldtypes/Assets/settings" %}
 
 {% import "_includes/forms" as forms %}
 
-{% do view.registerAssetBundle("platocreative\\craftcommercepricingmatrix\\assetbundles\\craftcommercepricingmatrix\\CraftCommercePricingMatrixAsset") %}
+{% do view.registerAssetBundle("platocreative\\craftcommercepricingmatrix\\assetbundles\\pricingmatrixfield\\PricingmatrixFieldAsset") %}
 
-{{ forms.textField({
-    label: 'Some Attribute',
-    instructions: 'Enter some attribute here.',
-    id: 'someAttribute',
-    name: 'someAttribute',
-    value: field['someAttribute']})
-}}
+{% block fileTypesField %}{% endblock %}
+{% block limitField %}{% endblock %}
+{% block viewModeField %}{% endblock %}

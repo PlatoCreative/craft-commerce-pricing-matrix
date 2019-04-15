@@ -37,7 +37,7 @@ class Pricingmatrix extends Model
      *
      * @var string
      */
-    public $someAttribute = 'Some Default';
+    // public $someAttribute = 'Some Default';
 
     // Public Methods
     // =========================================================================
@@ -54,9 +54,9 @@ class Pricingmatrix extends Model
      */
     public function rules()
     {
-        return [
-            ['someAttribute', 'string'],
-            ['someAttribute', 'default', 'value' => 'Some Default'],
-        ];
+        // return [
+        //     ['someAttribute', 'string'],
+        //     ['someAttribute', 'default', 'value' => 'Some Default'],
+        // ];
     }
 }

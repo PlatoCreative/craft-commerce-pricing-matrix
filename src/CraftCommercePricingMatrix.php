@@ -12,15 +12,23 @@ namespace platocreative\craftcommercepricingmatrix;
 
 use platocreative\craftcommercepricingmatrix\services\Pricingmatrix as PricingmatrixService;
 use platocreative\craftcommercepricingmatrix\fields\Pricingmatrix as PricingmatrixField;
+use platocreative\craftcommercepricingmatrix\queue\SavePricingMatrixJob;
+use craft\commerce\services\Variants;
+use craft\commerce\events\LineItemEvent;
+use craft\commerce\services\LineItems;
+use craft\commerce\elements\Product;
 
 use Craft;
 use craft\base\Plugin;
+use craft\services\Elements;
 use craft\services\Plugins;
 use craft\events\PluginEvent;
+use craft\helpers\Assets;
 use craft\web\UrlManager;
 use craft\services\Fields;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
+use craft\events\RegisterAssetFileKindsEvent;
 
 use yii\base\Event;
 
@@ -82,23 +90,63 @@ class CraftCommercePricingMatrix extends Plugin
         parent::init();
         self::$plugin = $this;
 
-        // Register our site routes
+        // // Register our site routes
+        // Event::on(
+        //     UrlManager::class,
+        //     UrlManager::EVENT_REGISTER_SITE_URL_RULES,
+        //     function (RegisterUrlRulesEvent $event) {
+        //         $event->rules['siteActionTrigger1'] = 'craft-commerce-pricing-matrix/pricingmatrix';
+        //     }
+        // );
+
+        // Register CSV files as an allowed file type
         Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
-                $event->rules['siteActionTrigger1'] = 'craft-commerce-pricing-matrix/pricingmatrix';
+            Assets::class,
+            Assets::EVENT_REGISTER_FILE_KINDS,
+            function (RegisterAssetFileKindsEvent $event) {
+                $event->fileKinds['csv'] = [
+                    'label' => 'CSV',
+                    'extensions' => ['csv']
+                ];
             }
         );
 
-        // Register our CP routes
+        // Register a line item population event to handle pricing matrix lookups.
         Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
-                $event->rules['cpActionTrigger1'] = 'craft-commerce-pricing-matrix/pricingmatrix/do-something';
+            LineItems::class,
+            LineItems::EVENT_POPULATE_LINE_ITEM,
+            function(LineItemEvent $e) {
+
+                $lineItem = $e->lineItem;
+                $snapshot = $lineItem->snapshot;
+                $options = $snapshot['options'];
+
+                // Check this product has a pricing matrix associated with it, then get the product price
+                if( self::$plugin->pricingmatrix->hasPricingMatrix($snapshot['productId']) ){
+
+                    // Fetch the product record
+                    $record = self::$plugin->pricingmatrix->getProductPriceRecord(
+                        $snapshot['productId'], $options['width'], $options['height']
+                    );
+
+                    // Update line item properies
+                    $lineItem->price = $record->price;
+                    $lineItem->height = $record->height;
+                    $lineItem->width = $record->width;
+                }
+
+                // Check if product is on sale here, and set on sale price
             }
         );
+
+        // // Register our CP routes
+        // Event::on(
+        //     UrlManager::class,
+        //     UrlManager::EVENT_REGISTER_CP_URL_RULES,
+        //     function (RegisterUrlRulesEvent $event) {
+        //         $event->rules['cpActionTrigger1'] = 'craft-commerce-pricing-matrix/pricingmatrix/do-something';
+        //     }
+        // );
 
         // Register our fields
         Event::on(
@@ -109,16 +157,29 @@ class CraftCommercePricingMatrix extends Plugin
             }
         );
 
-        // Do something after we're installed
+        // Detect when commerce products are saved and save the pricing matrix
         Event::on(
-            Plugins::class,
-            Plugins::EVENT_AFTER_INSTALL_PLUGIN,
-            function (PluginEvent $event) {
-                if ($event->plugin === $this) {
-                    // We were just installed
+            Elements::class,
+            Elements::EVENT_AFTER_SAVE_ELEMENT,
+            function(Event $event) {
+                if( is_a($event->element, "craft\\commerce\\elements\\Variant") ) {
+                    Craft::$app->queue->push(new SavePricingMatrixJob([
+                        'variantId' => $event->element->id,
+                    ]));
                 }
             }
         );
+
+        // // Do something after we're installed
+        // Event::on(
+        //     Plugins::class,
+        //     Plugins::EVENT_AFTER_INSTALL_PLUGIN,
+        //     function (PluginEvent $event) {
+        //         if ($event->plugin === $this) {
+        //             // We were just installed
+        //         }
+        //     }
+        // );
 
 /**
  * Logging in Craft involves using one of the following methods:

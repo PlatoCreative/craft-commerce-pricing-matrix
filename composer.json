@@ -30,7 +30,7 @@
         }
     },
     "extra": {
-        "name": "Craft Commerce Pricing Matrix",
+        "name": "Pricing Matrix for Craft Commerce",
         "handle": "craft-commerce-pricing-matrix",
         "hasCpSettings": false,
         "hasCpSection": false,

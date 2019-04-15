@@ -33,6 +33,11 @@ use craft\db\ActiveRecord;
  */
 class Pricingmatrix extends ActiveRecord
 {
+    /**
+     * Define constants
+     */
+    const TABLE_NAME = 'pricingmatrix_lookup';
+
     // Public Static Methods
     // =========================================================================
 
@@ -50,6 +55,6 @@ class Pricingmatrix extends ActiveRecord
      */
     public static function tableName()
     {
-        return '{{%craftcommercepricingmatrix_pricingmatrix}}';
+        return '{{%'.self::TABLE_NAME.'}}';
     }
 }

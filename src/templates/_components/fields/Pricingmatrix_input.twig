@@ -12,13 +12,5 @@
  * @since     1.0.0
  */
 #}
-
+{% extends "_components/fieldtypes/Assets/input" %}
 {% import "_includes/forms" as forms %}
-
-{{ forms.textField({
-        label: 'Some Field',
-        instructions: 'Enter some text here.',
-        id: name,
-        name: name,
-        value: value})
-}}

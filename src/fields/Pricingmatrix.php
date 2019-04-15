@@ -16,9 +16,11 @@ use platocreative\craftcommercepricingmatrix\assetbundles\pricingmatrixfield\Pri
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\fields\Assets;
 use craft\helpers\Db;
 use yii\db\Schema;
 use craft\helpers\Json;
+use craft\elements\Asset as AssetElement;
 
 /**
  * Pricingmatrix Field
@@ -33,17 +35,10 @@ use craft\helpers\Json;
  * @package   CraftCommercePricingMatrix
  * @since     1.0.0
  */
-class Pricingmatrix extends Field
+class Pricingmatrix extends Assets
 {
     // Public Properties
     // =========================================================================
-
-    /**
-     * Some attribute
-     *
-     * @var string
-     */
-    public $someAttribute = 'Some Default';
 
     // Static Methods
     // =========================================================================
@@ -55,7 +50,7 @@ class Pricingmatrix extends Field
      */
     public static function displayName(): string
     {
-        return Craft::t('craft-commerce-pricing-matrix', 'Pricingmatrix');
+        return Craft::t('craft-commerce-pricing-matrix', 'Pricing Matrix');
     }
 
     // Public Methods
@@ -73,12 +68,7 @@ class Pricingmatrix extends Field
      */
     public function rules()
     {
-        $rules = parent::rules();
-        $rules = array_merge($rules, [
-            ['someAttribute', 'string'],
-            ['someAttribute', 'default', 'value' => 'Some Default'],
-        ]);
-        return $rules;
+        return parent::rules();
     }
 
     /**
@@ -112,7 +102,7 @@ class Pricingmatrix extends Field
      */
     public function normalizeValue($value, ElementInterface $element = null)
     {
-        return $value;
+        return parent::normalizeValue($value, $element);
     }
 
     /**
@@ -131,6 +121,20 @@ class Pricingmatrix extends Field
     public function serializeValue($value, ElementInterface $element = null)
     {
         return parent::serializeValue($value, $element);
+    }
+
+    /**
+     * Taps into the beforeSave method of the Savable Component Interface
+     * We use this to set custom properties on file types and limits.
+     */
+    public function beforeSave(bool $isNew): bool
+    {
+        // Default model properties
+        $this->allowedKinds = ['csv'];
+        $this->limit = 1;
+        $this->restrictFiles = true;
+
+        return parent::beforeSave($isNew);
     }
 
     /**
@@ -232,6 +236,7 @@ class Pricingmatrix extends Field
             'craft-commerce-pricing-matrix/_components/fields/Pricingmatrix_settings',
             [
                 'field' => $this,
+                'elementType' => AssetElement::class
             ]
         );
     }
@@ -337,31 +342,6 @@ class Pricingmatrix extends Field
     {
         // Register our asset bundle
         Craft::$app->getView()->registerAssetBundle(PricingmatrixFieldAsset::class);
-
-        // Get our id and namespace
-        $id = Craft::$app->getView()->formatInputId($this->handle);
-        $namespacedId = Craft::$app->getView()->namespaceInputId($id);
-
-        // Variables to pass down to our field JavaScript to let it namespace properly
-        $jsonVars = [
-            'id' => $id,
-            'name' => $this->handle,
-            'namespace' => $namespacedId,
-            'prefix' => Craft::$app->getView()->namespaceInputId(''),
-            ];
-        $jsonVars = Json::encode($jsonVars);
-        Craft::$app->getView()->registerJs("$('#{$namespacedId}-field').CraftCommercePricingMatrixPricingmatrix(" . $jsonVars . ");");
-
-        // Render the input template
-        return Craft::$app->getView()->renderTemplate(
-            'craft-commerce-pricing-matrix/_components/fields/Pricingmatrix_input',
-            [
-                'name' => $this->handle,
-                'value' => $value,
-                'field' => $this,
-                'id' => $id,
-                'namespacedId' => $namespacedId,
-            ]
-        );
+        return parent::getInputHtml($value, $element);
     }
 }

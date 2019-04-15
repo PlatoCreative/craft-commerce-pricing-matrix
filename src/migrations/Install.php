@@ -11,6 +11,7 @@
 namespace platocreative\craftcommercepricingmatrix\migrations;
 
 use platocreative\craftcommercepricingmatrix\CraftCommercePricingMatrix;
+use platocreative\craftcommercepricingmatrix\records\Pricingmatrix as PricingMatrixRecord;
 
 use Craft;
 use craft\config\DbConfig;
@@ -98,19 +99,22 @@ class Install extends Migration
         $tablesCreated = false;
 
     // craftcommercepricingmatrix_pricingmatrix table
-        $tableSchema = Craft::$app->db->schema->getTableSchema('{{%craftcommercepricingmatrix_pricingmatrix}}');
+        $tableSchema = Craft::$app->db->schema->getTableSchema(PricingMatrixRecord::tableName());
         if ($tableSchema === null) {
             $tablesCreated = true;
             $this->createTable(
-                '{{%craftcommercepricingmatrix_pricingmatrix}}',
+                PricingMatrixRecord::tableName(),
                 [
                     'id' => $this->primaryKey(),
+                    'fieldId' => $this->integer()->notNull(),
+                    'productId' => $this->integer()->notNull(),
+                    'height' => $this->integer()->notNull()->defaultValue(0),
+                    'width' => $this->integer()->notNull()->defaultValue(0),
+                    'price' => $this->decimal(10, 2)->defaultValue(null),
+                    'siteId' => $this->integer()->notNull(),
                     'dateCreated' => $this->dateTime()->notNull(),
                     'dateUpdated' => $this->dateTime()->notNull(),
                     'uid' => $this->uid(),
-                // Custom columns in the table
-                    'siteId' => $this->integer()->notNull(),
-                    'some_field' => $this->string(255)->notNull()->defaultValue(''),
                 ]
             );
         }
@@ -125,17 +129,6 @@ class Install extends Migration
      */
     protected function createIndexes()
     {
-    // craftcommercepricingmatrix_pricingmatrix table
-        $this->createIndex(
-            $this->db->getIndexName(
-                '{{%craftcommercepricingmatrix_pricingmatrix}}',
-                'some_field',
-                true
-            ),
-            '{{%craftcommercepricingmatrix_pricingmatrix}}',
-            'some_field',
-            true
-        );
         // Additional commands depending on the db driver
         switch ($this->driver) {
             case DbConfig::DRIVER_MYSQL:
@@ -154,10 +147,30 @@ class Install extends Migration
     {
     // craftcommercepricingmatrix_pricingmatrix table
         $this->addForeignKey(
-            $this->db->getForeignKeyName('{{%craftcommercepricingmatrix_pricingmatrix}}', 'siteId'),
-            '{{%craftcommercepricingmatrix_pricingmatrix}}',
+            $this->db->getForeignKeyName(PricingMatrixRecord::tableName(), 'siteId'),
+            PricingMatrixRecord::tableName(),
             'siteId',
             '{{%sites}}',
+            'id',
+            'CASCADE',
+            'CASCADE'
+        );
+
+        $this->addForeignKey(
+            $this->db->getForeignKeyName(PricingMatrixRecord::tableName(), 'productId'),
+            PricingMatrixRecord::tableName(),
+            'productId',
+            '{{%commerce_products}}',
+            'id',
+            'CASCADE',
+            'CASCADE'
+        );
+
+         $this->addForeignKey(
+            $this->db->getForeignKeyName(PricingMatrixRecord::tableName(), 'fieldId'),
+            PricingMatrixRecord::tableName(),
+            'fieldId',
+            '{{%fields}}',
             'id',
             'CASCADE',
             'CASCADE'
@@ -181,6 +194,6 @@ class Install extends Migration
     protected function removeTables()
     {
     // craftcommercepricingmatrix_pricingmatrix table
-        $this->dropTableIfExists('{{%craftcommercepricingmatrix_pricingmatrix}}');
+        $this->dropTableIfExists(PricingMatrixRecord::tableName());
     }
 }

@@ -11,9 +11,16 @@
 namespace platocreative\craftcommercepricingmatrix\services;
 
 use platocreative\craftcommercepricingmatrix\CraftCommercePricingMatrix;
+use platocreative\craftcommercepricingmatrix\fields\Pricingmatrix as PricingMatrixField;
+use platocreative\craftcommercepricingmatrix\records\Pricingmatrix as PricingMatrixRecord;
 
 use Craft;
 use craft\base\Component;
+use craft\base\ElementInterface;
+use craft\commerce\elements\Variant;
+use craft\commerce\elements\Product;
+use craft\elements\Asset;
+use craft\models\Site;
 
 /**
  * Pricingmatrix Service
@@ -34,19 +41,221 @@ class Pricingmatrix extends Component
     // =========================================================================
 
     /**
-     * This function can literally be anything you want, and you can have as many service
-     * functions as you want
-     *
-     * From any other plugin file, call it like this:
-     *
-     *     CraftCommercePricingMatrix::$plugin->pricingmatrix->exampleService()
-     *
-     * @return mixed
+     * Saves a Pricing Matrix from a commerce variant
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  Variant
+     * @return void
      */
-    public function exampleService()
+    public function savePricingMatrix(Variant $variant)
     {
-        $result = 'something';
+        // Get the product and its fields
+        $product = $variant->getProduct();
+        $productFieldLayout = $product->getFieldLayout();
+        $productFields = $productFieldLayout->getFields();
+        $currentSite = Craft::$app->sites->getCurrentSite();
 
-        return $result;
+        // Loop product fields and insert pricing matrices from uploaded CSV's
+        foreach ($productFields as $field) {
+            if( ! $field instanceof PricingMatrixField ) continue;
+
+            // Get all uploaded pricing matrices against this product field
+            $pricingMatrixAsset = $product->{$field->handle}->all();
+
+            // Delete pricing matrix information against this field if there's no assets.
+            // The user might've removed an asset and re-saved.
+            if( empty($pricingMatrixAsset) ){
+                $this->deletePricingMatrix($product->id, $field->id, $currentSite->id);
+                continue;
+            }
+
+            $heights = [];
+            $widths = [];
+            $pricing = [];
+            $pricingMatrix = [];
+
+            // Parse out the pricing grid
+            foreach ($pricingMatrixAsset as $asset) {
+
+                // Check if the CSV has been modified since the last time it was processed
+                if( ! $this->isStale($asset, $product->id, $field->id, $currentSite->id) ) continue;
+
+                // Parse out the inital grid
+                $data = $asset->getContents();
+                $data = explode("\n", $data);
+
+                // Parse the header row
+                $heights = explode(',',array_shift($data));
+                $heights = array_slice($heights, 1);
+
+                // Create the widths array and parse out csv values
+                foreach ($data as $row) {
+                    $pricingData = explode(',', $row);
+                    $widths[] = array_shift($pricingData);
+                    $pricing[] = $pricingData;
+                }
+            }
+
+            // Generate a table matrix
+            foreach ($heights as $col => $height) {
+                foreach ($widths as $row => $width) {
+                    $pricingMatrix[] = [
+                        $field->id,
+                        $product->id,
+                        $height,
+                        $width,
+                        $pricing[$row][$col],
+                        $currentSite->id
+                    ];
+                }
+            }
+
+            // Don't process empty pricing matrices.
+            if( empty($pricingMatrix) ) continue;
+
+            // Determine the fields to use
+            $pricingMatrixRecord = new PricingMatrixRecord();
+            $fields = array_values(
+                array_intersect($pricingMatrixRecord->attributes(), [
+                    'fieldId','productId','height','width','price','siteId'
+                ]
+            ));
+
+            // Delete pricing matrix from the database
+            $this->deletePricingMatrix($product->id, $field->id, $currentSite->id);
+
+            // Batch insert the new pricing matrix
+            Craft::$app->db->createCommand()->batchInsert(PricingMatrixRecord::tableName(), $fields, $pricingMatrix)->execute();
+        }
+    }
+
+    /**
+     * Delete's pricing matrix data for the passed product field, and site
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int
+     * @param  int
+     * @return [type]
+     */
+    public function deletePricingMatrix(int $productId, int $fieldId, int $siteId = null)
+    {
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        return PricingMatrixRecord::deleteAll([
+            'fieldId' => $fieldId,
+            'productId' => $productId,
+            'siteId' => $siteId
+        ]);
+    }
+
+    /**
+     * Returns whether this product has an associated pricing matrix.
+     * Optionally filters on a field and site Id.
+     *
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int|null
+     * @param  int|null
+     * @return boolean
+     */
+    public function hasPricingMatrix(int $productId, int $fieldId = null, int $siteId = null)
+    {
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        // Define the base where
+        $where = [
+            'productId' => $productId,
+            'siteId' => $siteId
+        ];
+
+        if( !is_null($fieldId) ){
+            $where['fieldId'] = $fieldId;
+        }
+
+        // Fetch one record matching this criteria
+        $pricingMatrixRecord = PricingMatrixRecord::find()->where($where)->one();
+
+        return !is_null($pricingMatrixRecord);
+    }
+
+    /**
+     * Returns a price for the passed product Id, width & height
+     * Null is returned when an incomplete width or height is given.
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @return float or null
+     */
+    public function getProductPrice(int $productId, int $width = null, int $height = null, int $fieldId = null, int $siteId = null) : ?float
+    {
+        $record = $this->getProductPriceRecord($productId, $width, $height, $fieldId, $siteId);
+        return (empty($record) ? null : (float) $record->price);
+    }
+
+    /**
+     * Returns a product pricing matrix record
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @return float or null
+     */
+    public function getProductPriceRecord(int $productId, int $width = null, int $height = null, int $fieldId = null, int $siteId = null) : ?PricingMatrixRecord
+    {
+         if( is_null($width) || is_null($height) ) return null;
+
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        $where = [
+            'productId' => $productId,
+            'siteId' => $siteId
+        ];
+
+        // Set extra where properties
+        if( !is_null($fieldId) ) $where['fieldId'] = $fieldId;
+
+        // Use this nifty ordering trick to fetch the nearest height and width value for the selected product.
+        // This will use a full table scan, so might run into performance issues in the million(s) mark.
+        // It's fast enough (and simple) to be optimised when it becomes a problem.
+        $record = PricingMatrixRecord::find()
+            ->where($where)
+            ->orderBy("ABS(height - ($height + 1)), ABS(width - ($width + 1))")
+        ->one();
+
+        return $record;
+    }
+
+    /**
+     * Returns whether the uploaded asset is stale
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  Asset
+     * @param  int
+     * @param  int
+     * @param  int|null
+     * @return boolean
+     */
+    public function isStale(Asset $pricingMatrixAsset, int $productId, int $fieldId, int $siteId = null)
+    {
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        $lastUpdatedRecord = PricingMatrixRecord::find()->where([
+            'productId' => $productId,
+            'fieldId' => $fieldId,
+            'siteId' => $siteId,
+        ])->andWhere("dateCreated > '{$pricingMatrixAsset->dateCreated->format('Y-m-d H:i:s')}'")->one();
+
+        return empty($lastUpdatedRecord);
     }
 }
