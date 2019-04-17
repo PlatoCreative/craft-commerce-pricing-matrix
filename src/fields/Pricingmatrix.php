@@ -40,6 +40,12 @@ class Pricingmatrix extends Assets
     // Public Properties
     // =========================================================================
 
+    /**
+     * Whether this pricing matrix is used for promotional pricing of a product
+     * @var boolean
+     */
+    public $promotionalPricing;
+
     // Static Methods
     // =========================================================================
 

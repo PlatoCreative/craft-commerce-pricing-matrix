@@ -17,10 +17,13 @@ use platocreative\craftcommercepricingmatrix\records\Pricingmatrix as PricingMat
 use Craft;
 use craft\base\Component;
 use craft\base\ElementInterface;
-use craft\commerce\elements\Variant;
-use craft\commerce\elements\Product;
 use craft\elements\Asset;
 use craft\models\Site;
+
+use craft\commerce\elements\Variant;
+use craft\commerce\elements\Product;
+use craft\commerce\models\LineItem;
+use craft\commerce\events\LineItemEvent;
 
 /**
  * Pricingmatrix Service
@@ -57,6 +60,8 @@ class Pricingmatrix extends Component
         // Loop product fields and insert pricing matrices from uploaded CSV's
         foreach ($productFields as $field) {
             if( ! $field instanceof PricingMatrixField ) continue;
+
+            $isPromotional = (empty($field->promotionalPricing) ? '0' : '1');
 
             // Get all uploaded pricing matrices against this product field
             $pricingMatrixAsset = $product->{$field->handle}->all();
@@ -104,6 +109,7 @@ class Pricingmatrix extends Component
                         $height,
                         $width,
                         $pricing[$row][$col],
+                        $isPromotional,
                         $currentSite->id
                     ];
                 }
@@ -116,7 +122,7 @@ class Pricingmatrix extends Component
             $pricingMatrixRecord = new PricingMatrixRecord();
             $fields = array_values(
                 array_intersect($pricingMatrixRecord->attributes(), [
-                    'fieldId','productId','height','width','price','siteId'
+                    'fieldId','productId','height','width','price','isPromotional','siteId'
                 ]
             ));
 
@@ -182,6 +188,37 @@ class Pricingmatrix extends Component
     }
 
     /**
+     * Returns whether the product has a promotional pricing matrix
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int|null
+     * @param  int|null
+     * @return boolean
+     */
+    public function hasPromoPricingMatrix(int $productId, int $fieldId = null, int $siteId = null)
+    {
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        // Define the base where
+        $where = [
+            'productId' => $productId,
+            'siteId' => $siteId,
+            'isPromotional' => '1'
+        ];
+
+        if( !is_null($fieldId) ){
+            $where['fieldId'] = $fieldId;
+        }
+
+        // Fetch one record matching this criteria
+        $pricingMatrixRecord = PricingMatrixRecord::find()->where($where)->one();
+
+        return !is_null($pricingMatrixRecord);
+    }
+
+    /**
      * Returns a price for the passed product Id, width & height
      * Null is returned when an incomplete width or height is given.
      * @author Josh Smith <josh.smith@platocreative.co.nz>
@@ -218,21 +255,80 @@ class Pricingmatrix extends Component
 
         $where = [
             'productId' => $productId,
-            'siteId' => $siteId
+            'siteId' => $siteId,
+            'isPromotional' => '0'
         ];
 
         // Set extra where properties
         if( !is_null($fieldId) ) $where['fieldId'] = $fieldId;
 
+        return $this->_getProductPriceRecord($height, $width, $where);
+    }
+
+     /**
+     * Returns a promotional price for the passed product Id, width & height
+     * Null is returned when an incomplete width or height is given.
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @return float or null
+     */
+    public function getProductPromoPrice(int $productId, int $width = null, int $height = null, int $fieldId = null, int $siteId = null) : ?float
+    {
+        $record = $this->getProductPricePromoRecord($productId, $width, $height, $fieldId, $siteId);
+        return (empty($record) ? null : (float) $record->price);
+    }
+
+    /**
+     * Returns a promotional product pricing matrix record
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @param  int
+     * @return float or null
+     */
+    public function getProductPricePromoRecord(int $productId, int $width = null, int $height = null, int $fieldId = null, int $siteId = null) : ?PricingMatrixRecord
+    {
+         if( is_null($width) || is_null($height) ) return null;
+
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        $where = [
+            'productId' => $productId,
+            'siteId' => $siteId,
+            'isPromotional' => '1'
+        ];
+
+        // Set extra where properties
+        if( !is_null($fieldId) ) $where['fieldId'] = $fieldId;
+
+        return $this->_getProductPriceRecord($height, $width, $where);
+    }
+
+    /**
+     * Getter method for returning the product price record
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int
+     * @param  array
+     * @return Product price record
+     */
+    protected function _getProductPriceRecord(int $height, int $width, array $where)
+    {
         // Use this nifty ordering trick to fetch the nearest height and width value for the selected product.
         // This will use a full table scan, so might run into performance issues in the million(s) mark.
         // It's fast enough (and simple) to be optimised when it becomes a problem.
-        $record = PricingMatrixRecord::find()
+        return PricingMatrixRecord::find()
             ->where($where)
             ->orderBy("ABS(height - ($height + 1)), ABS(width - ($width + 1))")
         ->one();
-
-        return $record;
     }
 
     /**
@@ -257,5 +353,85 @@ class Pricingmatrix extends Component
         ])->andWhere("dateCreated > '{$pricingMatrixAsset->dateCreated->format('Y-m-d H:i:s')}'")->one();
 
         return empty($lastUpdatedRecord);
+    }
+
+    /**
+     * Handles population of line items event
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  LineItemEvent
+     * @return void
+     */
+    public function handlePopulateLineItemEvent(LineItemEvent $e)
+    {
+        $lineItem = $e->lineItem;
+        $snapshot = $lineItem->snapshot;
+        $options = $snapshot['options'];
+
+        // Check this product has a pricing matrix associated with it, then get the product price
+        $hasPricingMatrix = $this->hasPricingMatrix($snapshot['productId']);
+        if(! $hasPricingMatrix) return;
+
+        // Fetch the standard product record
+        $standardPricingRecord = $this->getProductPriceRecord(
+            $snapshot['productId'], $options['width'], $options['height']
+        );
+
+        // Fetch the promo product record
+        $promoPricingRecord = $this->getProductPricePromoRecord(
+            $snapshot['productId'], $options['width'], $options['height']
+        );
+
+        // Update line item properies
+        if( !is_null($standardPricingRecord) ){
+            $lineItem = $this->setLineItemDimensions($lineItem, $standardPricingRecord->width, $standardPricingRecord->height);
+            $lineItem = $this->setLineItemPrice($lineItem, $standardPricingRecord->price);
+        }
+
+        // Check if product is on sale here, and set on sale price
+        if( !is_null($promoPricingRecord) && $snapshot['onSale'] ){
+            $lineItem = $this->setLineItemDimensions($lineItem, $promoPricingRecord->width, $promoPricingRecord->height);
+            $lineItem = $this->setLineItemPromoPrice($lineItem, $standardPricingRecord->price, $promoPricingRecord->price);
+        }
+    }
+
+    /**
+     * Sets dimension attributes on the passed line item
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  LineItem
+     * @param  int
+     * @param  int
+     */
+    public function setLineItemDimensions(LineItem $lineItem, int $width, int $height)
+    {
+        $lineItem->width = $width;
+        $lineItem->height = $height;
+        return $lineItem;
+    }
+
+    /**
+     * Sets a standard price on the passed line item
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  LineItem
+     * @param  float
+     */
+    public function setLineItemPrice(LineItem $lineItem, float $price)
+    {
+        $lineItem->price = $price;
+        return $lineItem;
+    }
+
+    /**
+     * Sets promo pricing on the passed line item
+     * A standard and promo price is passed to calculate the difference
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  LineItem
+     * @param  float
+     * @param  float
+     */
+    public function setLineItemPromoPrice(LineItem $lineItem, float $standardPrice, float $promoPrice)
+    {
+        $lineItem->salePrice = $promoPrice;
+        $lineItem->saleAmount = -($standardPrice - $promoPrice);
+        return $lineItem;
     }
 }

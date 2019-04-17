@@ -111,6 +111,7 @@ class Install extends Migration
                     'height' => $this->integer()->notNull()->defaultValue(0),
                     'width' => $this->integer()->notNull()->defaultValue(0),
                     'price' => $this->decimal(10, 2)->defaultValue(null),
+                    'isPromotional' => "ENUM('0','1') DEFAULT '0' NOT NULL",
                     'siteId' => $this->integer()->notNull(),
                     'dateCreated' => $this->dateTime()->notNull(),
                     'dateUpdated' => $this->dateTime()->notNull(),

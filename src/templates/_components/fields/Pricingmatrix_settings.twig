@@ -18,6 +18,17 @@
 
 {% do view.registerAssetBundle("platocreative\\craftcommercepricingmatrix\\assetbundles\\pricingmatrixfield\\PricingmatrixFieldAsset") %}
 
-{% block fileTypesField %}{% endblock %}
-{% block limitField %}{% endblock %}
-{% block viewModeField %}{% endblock %}
+{% block fieldSettings %}
+	{{ forms.lightswitchField({
+        label: "Promotional Pricing"|t('app'),
+        instructions: "Is this pricing matrix used for promotional pricing of a product?"|t('app'),
+        id: 'promotionalPricing',
+        name: 'promotionalPricing',
+        on: field.promotionalPricing
+    }) }}
+
+	{{ parent() }}
+	{% block fileTypesField %}{% endblock %}
+	{% block limitField %}{% endblock %}
+	{% block viewModeField %}{% endblock %}
+{% endblock %}
