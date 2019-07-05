@@ -103,6 +103,11 @@ class Pricingmatrix extends Component
             // Generate a table matrix
             foreach ($heights as $col => $height) {
                 foreach ($widths as $row => $width) {
+
+                    // Don't include items with a blank price
+                    if( empty(trim($pricing[$row][$col])) ) continue;
+
+                    // Add the rest to the matrix
                     $pricingMatrix[] = [
                         $field->id,
                         $product->id,
