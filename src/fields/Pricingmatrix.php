@@ -237,12 +237,15 @@ class Pricingmatrix extends Assets
      */
     public function getSettingsHtml()
     {
+        $elementType = $this->elementType();
+
         // Render the settings template
         return Craft::$app->getView()->renderTemplate(
             'craft-commerce-pricing-matrix/_components/fields/Pricingmatrix_settings',
             [
                 'field' => $this,
-                'elementType' => AssetElement::class
+                'elementType' => AssetElement::class,
+                'pluralElementType' => $elementType::pluralDisplayName(),
             ]
         );
     }
