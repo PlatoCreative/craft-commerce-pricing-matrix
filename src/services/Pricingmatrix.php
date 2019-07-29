@@ -339,7 +339,7 @@ class Pricingmatrix extends Component
         ->one();
     }
 
-    /**
+     /**
      * Returns a pricing record with the minimum dimensions
      * @author Josh Smith <josh.smith@platocreative.co.nz>
      * @param  int
@@ -348,14 +348,7 @@ class Pricingmatrix extends Component
      */
     public function getMinDimensions(int $productId, int $siteId = null): ?PricingmatrixRecord
     {
-        if( is_null($siteId) ){
-            $siteId = Craft::$app->sites->getCurrentSite()->id;
-        }
-
-        return PricingMatrixRecord::find()
-            ->where(['productId' => $productId, 'siteId' => $siteId])
-            ->orderBy('width ASC, height ASC')
-        ->one();
+        return $this->_getPricingRecord(['productId' => $productId], 'width ASC, height ASC', $siteId);
     }
 
     /**
@@ -367,15 +360,65 @@ class Pricingmatrix extends Component
      */
     public function getMaxDimensions(int $productId, int $siteId = null) : ?PricingmatrixRecord
     {
+        return $this->_getPricingRecord(['productId' => $productId], 'width DESC, height DESC', $siteId);
+    }
+
+    /**
+     * Returns the minimum standard pricing dimensions
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     */
+    public function getMinStandardDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    {
+        $where = ['isPromotional' => '0', 'productId' => $productId];
+        return $this->_getPricingRecord($where, 'width ASC, height ASC', $siteId);
+    }
+
+    /**
+     * Returns the maximum standard pricing dimensions
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     */
+    public function getMaxStandardDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    {
+        $where = ['isPromotional' => '0', 'productId' => $productId];
+        return $this->_getPricingRecord($where, 'width DESC, height DESC', $siteId);
+    }
+
+    /**
+     * Returns the minimum promo pricing dimensions
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     */
+    public function getMinPromoDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    {
+        $where = ['isPromotional' => '1', 'productId' => $productId];
+        return $this->_getPricingRecord($where, 'width ASC, height ASC', $siteId);
+    }
+
+    /**
+     * Returns the maximum promo pricing dimensions
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     */
+    public function getMaxPromoDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    {
+        $where = ['isPromotional' => '1', 'productId' => $productId];
+        return $this->_getPricingRecord($where, 'width DESC, height DESC', $siteId);
+    }
+
+    /**
+     * Returns a pricing record
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     */
+    protected function _getPricingRecord(array $where, string $order = '', int $siteId = null): ?PricingMatrixRecord
+    {
         if( is_null($siteId) ){
-            $siteId = Craft::$app->sites->getCurrentSite()->id;
+            $where['siteId'] = Craft::$app->sites->getCurrentSite()->id;
         }
 
         return PricingMatrixRecord::find()
-            ->where(['productId' => $productId, 'siteId' => $siteId])
-            ->orderBy('width DESC, height DESC')
+            ->where($where)
+            ->orderBy($order)
         ->one();
     }
+
 
     /**
      * Returns whether the uploaded asset is stale
