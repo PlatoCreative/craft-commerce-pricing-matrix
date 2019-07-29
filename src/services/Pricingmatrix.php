@@ -323,16 +323,57 @@ class Pricingmatrix extends Component
      * @param  int
      * @param  int
      * @param  array
+     * @param  string
      * @return Product price record
      */
-    protected function _getProductPriceRecord(int $height, int $width, array $where)
+    protected function _getProductPriceRecord(int $height, int $width, array $where, string $round = '>=')
     {
-        // Use this nifty ordering trick to fetch the nearest height and width value for the selected product.
+        // Use this nifty ordering trick to fetch the rounded height and width value for the selected product.
         // This will use a full table scan, so might run into performance issues in the million(s) mark.
         // It's fast enough (and simple) to be optimised when it becomes a problem.
         return PricingMatrixRecord::find()
             ->where($where)
+            ->andWhere([$round, 'height', $height])
+            ->andWhere([$round, 'width', $width])
             ->orderBy("ABS(height - ($height + 1)), ABS(width - ($width + 1))")
+        ->one();
+    }
+
+    /**
+     * Returns a pricing record with the minimum dimensions
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int|null
+     * @return PricingmatrixRecord
+     */
+    public function getMinDimensions(int $productId, int $siteId = null): ?PricingmatrixRecord
+    {
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        return PricingMatrixRecord::find()
+            ->where(['productId' => $productId, 'siteId' => $siteId])
+            ->orderBy('width ASC, height ASC')
+        ->one();
+    }
+
+    /**
+     * Returns a pricing record with the maximum dimensions
+     * @author Josh Smith <josh.smith@platocreative.co.nz>
+     * @param  int
+     * @param  int|null
+     * @return PricingmatrixRecord
+     */
+    public function getMaxDimensions(int $productId, int $siteId = null) : ?PricingmatrixRecord
+    {
+        if( is_null($siteId) ){
+            $siteId = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        return PricingMatrixRecord::find()
+            ->where(['productId' => $productId, 'siteId' => $siteId])
+            ->orderBy('width DESC, height DESC')
         ->one();
     }
 
