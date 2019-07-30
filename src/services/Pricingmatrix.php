@@ -73,8 +73,8 @@ class Pricingmatrix extends Component
                 continue;
             }
 
-            $heights = [];
             $widths = [];
+            $heights = [];
             $pricing = [];
             $pricingMatrix = [];
 
@@ -89,20 +89,20 @@ class Pricingmatrix extends Component
                 $data = explode("\n", $data);
 
                 // Parse the header row
-                $heights = explode(',',array_shift($data));
-                $heights = array_slice($heights, 1);
+                $widths = explode(',',array_shift($data));
+                $widths = array_slice($widths, 1);
 
                 // Create the widths array and parse out csv values
                 foreach ($data as $row) {
                     $pricingData = explode(',', $row);
-                    $widths[] = array_shift($pricingData);
+                    $heights[] = array_shift($pricingData);
                     $pricing[] = $pricingData;
                 }
             }
 
             // Generate a table matrix
-            foreach ($heights as $col => $height) {
-                foreach ($widths as $row => $width) {
+            foreach ($widths as $col => $width) {
+                foreach ($heights as $row => $height) {
 
                     // Don't include items with a blank price
                     if( empty(trim($pricing[$row][$col])) ) continue;
