@@ -25,6 +25,8 @@ use craft\commerce\elements\Product;
 use craft\commerce\models\LineItem;
 use craft\commerce\events\LineItemEvent;
 
+use yii\db\Query;
+
 /**
  * Pricingmatrix Service
  *
@@ -339,86 +341,119 @@ class Pricingmatrix extends Component
         ->one();
     }
 
-     /**
-     * Returns a pricing record with the minimum dimensions
-     * @author Josh Smith <josh.smith@platocreative.co.nz>
-     * @param  int
-     * @param  int|null
-     * @return PricingmatrixRecord
+    /**
+     * Returns max dimensions for the passed product Id.
+     * If a width or height is specified, the nearest max bounds dimensions will be returned.
      */
-    public function getMinDimensions(int $productId, int $siteId = null): ?PricingmatrixRecord
+    public function getMaxDimensions(int $productId, int $width = null, int $height = null, int $siteId = null): ?array
     {
-        return $this->_getPricingRecord(['productId' => $productId], 'width ASC, height ASC', $siteId);
+        return $this->_getDimensions([
+            'productId' => $productId,
+            'width' => $width,
+            'height' => $height
+        ], 'max', $siteId);
     }
 
     /**
-     * Returns a pricing record with the maximum dimensions
-     * @author Josh Smith <josh.smith@platocreative.co.nz>
-     * @param  int
-     * @param  int|null
-     * @return PricingmatrixRecord
+     * Returns min dimensions for the passed product Id.
+     * If a width or height is specified, the nearest min bounds dimensions will be returned.
      */
-    public function getMaxDimensions(int $productId, int $siteId = null) : ?PricingmatrixRecord
+    public function getMinDimensions(int $productId, int $width = null, int $height = null, int $siteId = null): ?array
     {
-        return $this->_getPricingRecord(['productId' => $productId], 'width DESC, height DESC', $siteId);
+        return $this->_getDimensions([
+            'productId' => $productId,
+            'width' => $width,
+            'height' => $height
+        ], 'min', $siteId);
+    }
+
+    protected function _getDimensions(array $where, string $order = '', int $siteId = null): ?array
+    {
+        // Remove null values
+        $where = array_filter($where);
+
+        if( is_null($siteId) ){
+            $where['siteId'] = Craft::$app->sites->getCurrentSite()->id;
+        }
+
+        $query = new Query();
+        $query->select('height, width')
+            ->from(PricingmatrixRecord::TABLE_NAME)
+        ->where($where);
+
+        $width = $where['width'] ?? null;
+        $height = $where['height'] ?? null;
+
+        switch ($order) {
+            default:
+            case 'max':
+                $direction = 'DESC';
+                $symbol = '>=';
+                break;
+
+            case 'min':
+                $direction = 'ASC';
+                $symbol = '<=';
+                break;
+        }
+
+        if( !empty($width) ){
+            $query->andWhere([$symbol, 'width', $width]);
+            $query->addOrderBy('ABS(width -('.$width.'+1))');
+        } else {
+            $query->addOrderBy('width ' . $direction);
+        }
+
+        if( !empty($height) ){
+            $query->andWhere([$symbol, 'height', $height]);
+            $query->addOrderBy('ABS(height -('.$height.'+1))');
+        } else {
+            $query->addOrderBy('height ' . $direction);
+        }
+
+        $result = $query->limit(1)->one();
+        return empty($result) ? null : $result;
     }
 
     /**
      * Returns the minimum standard pricing dimensions
      * @author Josh Smith <josh.smith@platocreative.co.nz>
      */
-    public function getMinStandardDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    public function getMinStandardDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '0', 'productId' => $productId];
-        return $this->_getPricingRecord($where, 'width ASC, height ASC', $siteId);
+        return $this->_getDimensions($where, 'min', $siteId);
     }
 
-    /**
+    /*
      * Returns the maximum standard pricing dimensions
      * @author Josh Smith <josh.smith@platocreative.co.nz>
      */
-    public function getMaxStandardDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    public function getMaxStandardDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '0', 'productId' => $productId];
-        return $this->_getPricingRecord($where, 'width DESC, height DESC', $siteId);
+        return $this->_getDimensions($where, 'max', $siteId);
     }
 
     /**
      * Returns the minimum promo pricing dimensions
      * @author Josh Smith <josh.smith@platocreative.co.nz>
      */
-    public function getMinPromoDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    public function getMinPromoDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '1', 'productId' => $productId];
-        return $this->_getPricingRecord($where, 'width ASC, height ASC', $siteId);
+        return $this->_getDimensions($where, 'min', $siteId);
     }
 
     /**
      * Returns the maximum promo pricing dimensions
      * @author Josh Smith <josh.smith@platocreative.co.nz>
      */
-    public function getMaxPromoDimensions(int $productId, int $siteId = null): ?PricingMatrixRecord
+    public function getMaxPromoDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '1', 'productId' => $productId];
-        return $this->_getPricingRecord($where, 'width DESC, height DESC', $siteId);
+        return $this->_getDimensions($where, 'max', $siteId);
     }
-
-    /**
-     * Returns a pricing record
-     * @author Josh Smith <josh.smith@platocreative.co.nz>
-     */
-    protected function _getPricingRecord(array $where, string $order = '', int $siteId = null): ?PricingMatrixRecord
-    {
-        if( is_null($siteId) ){
-            $where['siteId'] = Craft::$app->sites->getCurrentSite()->id;
-        }
-
-        return PricingMatrixRecord::find()
-            ->where($where)
-            ->orderBy($order)
-        ->one();
-    }
-
 
     /**
      * Returns whether the uploaded asset is stale
