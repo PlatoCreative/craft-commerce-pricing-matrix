@@ -349,9 +349,7 @@ class Pricingmatrix extends Component
     {
         return $this->_getDimensions([
             'productId' => $productId,
-            'width' => $width,
-            'height' => $height
-        ], 'max', $siteId);
+        ], $width, $height, 'max', $siteId);
     }
 
     /**
@@ -362,16 +360,11 @@ class Pricingmatrix extends Component
     {
         return $this->_getDimensions([
             'productId' => $productId,
-            'width' => $width,
-            'height' => $height
-        ], 'min', $siteId);
+        ], $width, $height, 'min', $siteId);
     }
 
-    protected function _getDimensions(array $where, string $order = '', int $siteId = null): ?array
+    protected function _getDimensions(array $where, int $width = null, int $height = null, string $order = '', int $siteId = null): ?array
     {
-        // Remove null values
-        $where = array_filter($where);
-
         if( is_null($siteId) ){
             $where['siteId'] = Craft::$app->sites->getCurrentSite()->id;
         }
@@ -380,9 +373,6 @@ class Pricingmatrix extends Component
         $query->select('height, width')
             ->from(PricingmatrixRecord::TABLE_NAME)
         ->where($where);
-
-        $width = $where['width'] ?? null;
-        $height = $where['height'] ?? null;
 
         switch ($order) {
             default:
@@ -422,7 +412,7 @@ class Pricingmatrix extends Component
     public function getMinStandardDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '0', 'productId' => $productId];
-        return $this->_getDimensions($where, 'min', $siteId);
+        return $this->_getDimensions($where, null, null, 'min', $siteId);
     }
 
     /*
@@ -432,7 +422,7 @@ class Pricingmatrix extends Component
     public function getMaxStandardDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '0', 'productId' => $productId];
-        return $this->_getDimensions($where, 'max', $siteId);
+        return $this->_getDimensions($where, null, null, 'max', $siteId);
     }
 
     /**
@@ -442,7 +432,7 @@ class Pricingmatrix extends Component
     public function getMinPromoDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '1', 'productId' => $productId];
-        return $this->_getDimensions($where, 'min', $siteId);
+        return $this->_getDimensions($where, null, null, 'min', $siteId);
     }
 
     /**
@@ -452,7 +442,7 @@ class Pricingmatrix extends Component
     public function getMaxPromoDimensions(int $productId, int $siteId = null): ?array
     {
         $where = ['isPromotional' => '1', 'productId' => $productId];
-        return $this->_getDimensions($where, 'max', $siteId);
+        return $this->_getDimensions($where, null, null, 'max', $siteId);
     }
 
     /**
