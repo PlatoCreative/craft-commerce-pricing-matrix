@@ -107,7 +107,8 @@ class Pricingmatrix extends Component
                 foreach ($heights as $row => $height) {
 
                     // Don't include items with a blank price
-                    if( empty(trim($pricing[$row][$col])) ) continue;
+                    $pricingVal = $pricing[$row][$col] ?? null;
+                    if( empty($pricingVal) ) continue;
 
                     // Add the rest to the matrix
                     $pricingMatrix[] = [
