@@ -108,7 +108,7 @@ class Pricingmatrix extends Component
 
                     // Don't include items with a blank price
                     $pricingVal = $pricing[$row][$col] ?? null;
-                    if( empty($pricingVal) ) continue;
+                    if( empty(trim($pricingVal)) ) continue;
 
                     // Add the rest to the matrix
                     $pricingMatrix[] = [
