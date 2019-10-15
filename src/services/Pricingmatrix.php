@@ -348,6 +348,7 @@ class Pricingmatrix extends Component
      */
     public function getMaxDimensions(int $productId, int $width = null, int $height = null, int $siteId = null): ?array
     {
+        if( $width < $height ){ $height = null; } else { $width = null; }
         return $this->_getDimensions([
             'productId' => $productId,
         ], $width, $height, 'max', $siteId);
@@ -359,6 +360,7 @@ class Pricingmatrix extends Component
      */
     public function getMinDimensions(int $productId, int $width = null, int $height = null, int $siteId = null): ?array
     {
+        if( $width > $height ){ $height = null; } else { $width = null; }
         return $this->_getDimensions([
             'productId' => $productId,
         ], $width, $height, 'min', $siteId);
