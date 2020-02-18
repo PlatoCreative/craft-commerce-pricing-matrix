@@ -20,6 +20,7 @@ use craft\base\ElementInterface;
 use craft\elements\Asset;
 use craft\models\Site;
 
+use craft\commerce\Plugin as Commerce;
 use craft\commerce\elements\Variant;
 use craft\commerce\elements\Product;
 use craft\commerce\models\LineItem;
@@ -38,7 +39,7 @@ use yii\db\Query;
  *
  * @author    Josh Smith <josh.smith@platocreative.co.nz>
  * @package   CraftCommercePricingMatrix
- * @since     1.0.0
+ * @since     1.4.0
  */
 class Pricingmatrix extends Component
 {
@@ -484,30 +485,105 @@ class Pricingmatrix extends Component
         $snapshot = $lineItem->snapshot;
         $options = $snapshot['options'];
 
-        // Check this product has a pricing matrix associated with it, then get the product price
-        $hasPricingMatrix = $this->hasPricingMatrix($snapshot['productId']);
-        if(! $hasPricingMatrix) return;
+        $product = Commerce::getInstance()->getProducts()->getProductById($snapshot['productId']);
+        if( empty($product) ) return;
 
-        // Fetch the standard product record
-        $standardPricingRecord = $this->getProductPriceRecord(
-            $snapshot['productId'], $options['width'], $options['height']
-        );
+        if($product->type == 'dualBlinds') {
 
-        // Fetch the promo product record
-        $promoPricingRecord = $this->getProductPricePromoRecord(
-            $snapshot['productId'], $options['width'], $options['height']
-        );
+            $primary  = $product->primaryProduct->one();
+            $secondary  = $product->secondaryProduct->one();
+            
+            // Check this product has a pricing matrix associated with it, then get the product price
 
-        // Update line item properies
-        if( !is_null($standardPricingRecord) ){
-            $lineItem = $this->setLineItemDimensions($lineItem, $standardPricingRecord->width, $standardPricingRecord->height);
-            $lineItem = $this->setLineItemPrice($lineItem, $standardPricingRecord->price);
-        }
+            /************************************************** PRIMARY PRODUCT **************************************************/
+            $primaryHasPricingMatrix = $this->hasPricingMatrix($primary->id);
+            if(! $primaryHasPricingMatrix) return;
 
-        // Check if product is on sale here, and set on sale price
-        if( !is_null($promoPricingRecord) && $snapshot['onSale'] ){
-            $lineItem = $this->setLineItemDimensions($lineItem, $promoPricingRecord->width, $promoPricingRecord->height);
-            $lineItem = $this->setLineItemPromoPrice($lineItem, $standardPricingRecord->price, $promoPricingRecord->price);
+            // Fetch the standard product record
+            $primaryStandardPricingRecord = $this->getProductPriceRecord(
+                $primary->id, $options['width'], $options['height']
+            );
+
+            // Fetch the promo product record
+            $primaryPromoPricingRecord = $this->getProductPricePromoRecord(
+                $primary->id, $options['width'], $options['height']
+            );
+
+            // Update line item properies
+            if( !is_null($primaryStandardPricingRecord) ){
+                $lineItem = $this->setLineItemDimensions($lineItem, $primaryStandardPricingRecord->width, $primaryStandardPricingRecord->height); // both primary and secondary will be the same
+                $primaryLineItemPrice = $this->setLineItemPrice($lineItem, $primaryStandardPricingRecord->price);
+            }
+
+            // Check if product is on sale here, and set on sale price
+            if( !is_null($primaryPromoPricingRecord) && $snapshot['onSale'] ){
+                $lineItem = $this->setLineItemDimensions($lineItem, $primaryPromoPricingRecord->width, $primaryPromoPricingRecord->height); // both primary and secondary will be the same
+                $primaryLineItemPromoPrice = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price, $primaryPromoPricingRecord->price);
+            }
+
+            /************************************************** SECONDARY PRODUCT **************************************************/
+            $secondaryHasPricingMatrix = $this->hasPricingMatrix($secondary->id);
+            if(! $secondaryHasPricingMatrix) return;
+
+            // Fetch the standard product record
+            $secondaryStandardPricingRecord = $this->getProductPriceRecord(
+                $secondary->id, $options['width'], $options['height']
+            );
+
+            // Fetch the promo product record
+            $secondaryPromoPricingRecord = $this->getProductPricePromoRecord(
+                $secondary->id, $options['width'], $options['height']
+            );
+
+            // Update line item properies
+            if( !is_null($secondaryStandardPricingRecord) ){
+                $lineItem = $this->setLineItemDimensions($lineItem, $secondaryStandardPricingRecord->width, $secondaryStandardPricingRecord->height); // both primary and secondary will be the same
+                $secondaryLineItemPrice = $this->setLineItemPrice(
+                    $lineItem, 
+                    $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price
+                );
+            }
+
+            // Check if product is on sale here, and set on sale price
+            if( !is_null($secondaryPromoPricingRecord) && $snapshot['onSale'] ){
+                $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
+                $lineItem = $this->setLineItemPromoPrice(
+                    $lineItem, 
+                    $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, 
+                    $primaryPromoPricingRecord->price + $secondaryPromoPricingRecord->price
+                );
+            }
+
+            // dd( $primaryStandardPricingRecord->price, $secondaryStandardPricingRecord->price, $primaryPromoPricingRecord->price , $secondaryPromoPricingRecord->price );
+
+        } else {
+
+            // Check this product has a pricing matrix associated with it, then get the product price
+            $hasPricingMatrix = $this->hasPricingMatrix($snapshot['productId']);
+            if(! $hasPricingMatrix) return;
+
+            // Fetch the standard product record
+            $standardPricingRecord = $this->getProductPriceRecord(
+                $snapshot['productId'], $options['width'], $options['height']
+            );
+
+            // Fetch the promo product record
+            $promoPricingRecord = $this->getProductPricePromoRecord(
+                $snapshot['productId'], $options['width'], $options['height']
+            );
+
+            // Update line item properies
+            if( !is_null($standardPricingRecord) ){
+                $lineItem = $this->setLineItemDimensions($lineItem, $standardPricingRecord->width, $standardPricingRecord->height);
+                $lineItem = $this->setLineItemPrice($lineItem, $standardPricingRecord->price);
+            }
+
+            // Check if product is on sale here, and set on sale price
+            if( !is_null($promoPricingRecord) && $snapshot['onSale'] ){
+                $lineItem = $this->setLineItemDimensions($lineItem, $promoPricingRecord->width, $promoPricingRecord->height);
+                $lineItem = $this->setLineItemPromoPrice($lineItem, $standardPricingRecord->price, $promoPricingRecord->price);
+            }
+
         }
     }
 
