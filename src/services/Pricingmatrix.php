@@ -537,23 +537,22 @@ class Pricingmatrix extends Component
 
             // Update line item properies
             if( !is_null($secondaryStandardPricingRecord) ){
-                $lineItem = $this->setLineItemDimensions($lineItem, $secondaryStandardPricingRecord->width, $secondaryStandardPricingRecord->height); // both primary and secondary will be the same
-                $secondaryLineItemPrice = $this->setLineItemPrice(
-                    $lineItem, 
-                    $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price
-                );
+                // $lineItem = $this->setLineItemDimensions($lineItem, $secondaryStandardPricingRecord->width, $secondaryStandardPricingRecord->height); // both primary and secondary will be the same
+                $secondaryLineItemPrice = $this->setLineItemPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price);
             }
 
             // Check if product is on sale here, and set on sale price
             if( !is_null($secondaryPromoPricingRecord) && isset($snapshot['onSale2']) && !is_null($primaryPromoPricingRecord) && $snapshot['onSale'] ){
                 //BOTH ARE ON SALE
-                $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
+                // $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
                 $lineItem = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, $primaryPromoPricingRecord->price + $secondaryPromoPricingRecord->price);
 
-            } elseif ( !is_null($secondaryPromoPricingRecord) && isset($snapshot['onSale2']) && is_null($primaryPromoPricingRecord) && !$snapshot['onSale']){
-                $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
+            } elseif ( !is_null($secondaryPromoPricingRecord) && isset($snapshot['onSale2']) && (is_null($primaryPromoPricingRecord) || !$snapshot['onSale']) ){
+                // ONLY SECONDARY ON SALE
+                // $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
                 $lineItem = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, $primaryStandardPricingRecord->price + $secondaryPromoPricingRecord->price);
             }
+            
 
         } else {
 
