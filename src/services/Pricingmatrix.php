@@ -608,6 +608,7 @@ class Pricingmatrix extends Component
     public function setLineItemPrice(LineItem $lineItem, float $price)
     {
         $lineItem->price = $price;
+        $lineItem->salePrice = $price;
         return $lineItem;
     }
 
