@@ -2,7 +2,7 @@
     "name": "platocreative/craft-commerce-pricing-matrix",
     "description": "Craft Commerce Pricing Matrices. Adds a custom field type that can be used to upload a pricing matrix for products in a CSV format.",
     "type": "craft-plugin",
-    "version": "1.4.5",
+    "version": "1.4.6",
     "keywords": [
         "craft",
         "cms",
