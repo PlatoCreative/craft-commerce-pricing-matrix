@@ -542,7 +542,7 @@ class Pricingmatrix extends Component
             }
 
             // Check if product is on sale here, and set on sale price
-            if( !is_null($secondaryPromoPricingRecord) && isset($snapshot['onSale2']) && !is_null($primaryPromoPricingRecord) && $snapshot['onSale'] ){
+            if( !is_null($secondaryPromoPricingRecord) && isset($snapshot['onSale2']) && !is_null($primaryPromoPricingRecord) && $snapshot['onSale'] == true ){
                 //BOTH ARE ON SALE
                 // $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
                 $lineItem = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, $primaryPromoPricingRecord->price + $secondaryPromoPricingRecord->price);
@@ -550,9 +550,12 @@ class Pricingmatrix extends Component
                 // ONLY SECONDARY ON SALE
                 // $lineItem = $this->setLineItemDimensions($lineItem, $secondaryPromoPricingRecord->width, $secondaryPromoPricingRecord->height); // both primary and secondary will be the same
                 $lineItem = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, $primaryStandardPricingRecord->price + $secondaryPromoPricingRecord->price);
-            } elseif ( !is_null($secondaryStandardPricingRecord) && !isset($snapshot['onSale2']) && (!is_null($primaryPromoPricingRecord) || $snapshot['onSale']) ) {
-                // no secondary promo but does have primary
+            } elseif ( !$secondaryPromoPricingRecord && !isset($snapshot['onSale2']) && ($primaryPromoPricingRecord) || (isset($snapshot['onSale']) && $snapshot['onSale'] == true) ) {
+                // ONLY PRIMARY ON SALE
                 $lineItem = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, $primaryPromoPricingRecord->price + $secondaryStandardPricingRecord->price);
+            } else {
+                // none are on sale
+                $lineItem = $this->setLineItemPromoPrice($lineItem, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price, $primaryStandardPricingRecord->price + $secondaryStandardPricingRecord->price);
             }
             
 
